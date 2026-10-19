@@ -2,7 +2,7 @@ name: Typecheck
 
 on:
   push:
-    branches: [main, ts-migration]
+    branches: [develop, ts-migration]
   pull_request:
 
 jobs:
