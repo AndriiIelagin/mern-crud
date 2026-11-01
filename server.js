@@ -26,11 +26,6 @@ db.on('error', (err) => {
 // Instantiate express
 const app = express();
 
-// Don't touch this if you don't know it
-// We are using this for the express-rate-limit middleware
-// See: https://github.com/nfriedly/express-rate-limit
-app.enable('trust proxy');
-
 // Set public folder using built-in express.static middleware
 app.use(express.static('public'));
 
@@ -59,10 +54,10 @@ const server = app.listen(port, () => {
 });
 
 // Set up socket.io
-const io = socket(server,{
-  cors:{
+const io = socket(server, {
+  cors: {
     origin: config.react_app_url,
-  }
+  },
 });
 let online = 0;
 
@@ -72,9 +67,9 @@ io.on('connection', (socket) => {
   console.log(`Online: ${online}`);
   io.emit('visitor enters', online);
 
-  socket.on('add', data => socket.broadcast.emit('add', data));
-  socket.on('update', data => socket.broadcast.emit('update', data));
-  socket.on('delete', data => socket.broadcast.emit('delete', data));
+  socket.on('add', (data) => socket.broadcast.emit('add', data));
+  socket.on('update', (data) => socket.broadcast.emit('update', data));
+  socket.on('delete', (data) => socket.broadcast.emit('delete', data));
 
   socket.on('disconnect', () => {
     online--;
