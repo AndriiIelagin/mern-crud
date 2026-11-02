@@ -1,7 +1,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const stringCapitalizeName = require('string-capitalize-name');
-const User = require('../models/user');
+const { User } = require('../models/user');
 
 const router = express.Router();
 
@@ -10,11 +10,11 @@ const postLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
   max: 100,
   handler: (req, res) => {
-    res.status(429).json({ 
-      success: false, 
-      msg: 'Too many requests. Please try again in 5 minutes.' 
+    res.status(429).json({
+      success: false,
+      msg: 'Too many requests. Please try again in 5 minutes.',
     });
-  }
+  },
 });
 
 // Sanitization functions
@@ -26,14 +26,14 @@ const sanitizers = {
     if (isNaN(age)) return '';
     return parseInt(age);
   },
-  gender: (gender) => (gender === 'm' || gender === 'f') ? gender : ''
+  gender: (gender) => (gender === 'm' || gender === 'f' ? gender : ''),
 };
 
 // Validation helper
 const validateAge = (age) => {
   if (age === '') return null;
-  if (age < 5) return 'You\'re too young for this.';
-  if (age > 130) return 'You\'re too old for this.';
+  if (age < 5) return "You're too young for this.";
+  if (age > 130) return "You're too old for this.";
   return null;
 };
 
@@ -41,11 +41,11 @@ const validateAge = (age) => {
 const handleValidationError = (err, res) => {
   if (err.errors) {
     const field = Object.keys(err.errors)[0];
-    return res.status(400).json({ 
-      success: false, 
-      msg: err.errors[field].message 
-    });
+    return res
+      .status(400)
+      .json({ success: false, msg: err.errors[field].message });
   }
+  console.error('Unhandled error in users route:', err); // ← add this line
   res.status(500).json({ success: false, msg: 'Something went wrong.' });
 };
 
@@ -55,7 +55,7 @@ const formatUser = (user) => ({
   name: user.name,
   email: user.email,
   age: user.age,
-  gender: user.gender
+  gender: user.gender,
 });
 
 // Sanitize request body
@@ -63,7 +63,7 @@ const sanitizeUser = (body) => ({
   name: sanitizers.name(body.name || ''),
   email: sanitizers.email(body.email || ''),
   age: sanitizers.age(body.age),
-  gender: sanitizers.gender(body.gender || '')
+  gender: sanitizers.gender(body.gender || ''),
 });
 
 // GET single user
@@ -93,7 +93,7 @@ router.get('/', async (req, res) => {
 router.post('/', postLimiter, async (req, res) => {
   try {
     const sanitized = sanitizeUser(req.body);
-    
+
     // Validate age
     const ageError = validateAge(sanitized.age);
     if (ageError) {
@@ -106,7 +106,7 @@ router.post('/', postLimiter, async (req, res) => {
     res.status(201).json({
       success: true,
       msg: 'Successfully added!',
-      result: formatUser(result)
+      result: formatUser(result),
     });
   } catch (err) {
     handleValidationError(err, res);
@@ -117,18 +117,18 @@ router.post('/', postLimiter, async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const sanitized = sanitizeUser(req.body);
-    
+
     // Validate age
     const ageError = validateAge(sanitized.age);
     if (ageError) {
       return res.status(403).json({ success: false, msg: ageError });
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      sanitized,
-      { runValidators: true, context: 'query', new: true }
-    );
+    const user = await User.findByIdAndUpdate(req.params.id, sanitized, {
+      runValidators: true,
+      context: 'query',
+      new: true,
+    });
 
     if (!user) {
       return res.status(404).json({ success: false, msg: 'User not found.' });
@@ -137,7 +137,7 @@ router.put('/:id', async (req, res) => {
     res.json({
       success: true,
       msg: 'Successfully updated!',
-      result: formatUser(user)
+      result: formatUser(user),
     });
   } catch (err) {
     handleValidationError(err, res);
@@ -148,7 +148,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
-    
+
     if (!user) {
       return res.status(404).json({ success: false, msg: 'User not found.' });
     }
@@ -156,7 +156,7 @@ router.delete('/:id', async (req, res) => {
     res.json({
       success: true,
       msg: 'Successfully deleted!',
-      result: formatUser(user)
+      result: formatUser(user),
     });
   } catch (err) {
     res.status(500).json({ success: false, msg: 'Something went wrong.' });
