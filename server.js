@@ -5,76 +5,77 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const socket = require('socket.io');
 
-const config = require('./config/configs');
+const { env } = require('./config/env');
 
 // Use Node's default promise instead of Mongoose's promise library
 mongoose.Promise = global.Promise;
 
-// Connect to the database
-mongoose.connect(config.db);
+const start = async () => {
+  try {
+    await mongoose.connect(env.DB, { serverSelectionTimeoutMS: 5000 });
+    console.log('Connected to the database.');
+  } catch (error) {
+    console.log(`Cannot connect to MongoDB: ${error}`);
+    process.exit(1);
+  }
 
-let db = mongoose.connection;
+  // Instantiate express
+  const app = express();
 
-db.on('open', () => {
-  console.log('Connected to the database.');
-});
+  app.set('trust proxy', env.TRUST_PROXY);
 
-db.on('error', (err) => {
-  console.log(`Database error: ${err}`);
-});
+  // Set public folder using built-in express.static middleware
+  app.use(express.static('public'));
 
-// Instantiate express
-const app = express();
+  // Set body parser middleware
+  app.use(bodyParser.json());
 
-// Set public folder using built-in express.static middleware
-app.use(express.static('public'));
+  // Enable cross-origin access through the CORS middleware
+  // NOTICE: For React development server only!
+  if (env.CORS) {
+    app.use(cors());
+  }
 
-// Set body parser middleware
-app.use(bodyParser.json());
+  // Initialize routes middleware
+  app.use('/api/users', require('./routes/users'));
 
-// Enable cross-origin access through the CORS middleware
-// NOTICE: For React development server only!
-if (process.env.CORS) {
-  app.use(cors());
-}
-
-// Initialize routes middleware
-app.use('/api/users', require('./routes/users'));
-
-// Use express's default error handling middleware
-app.use((err, req, res, next) => {
-  if (res.headersSent) return next(err);
-  res.status(400).json({ err: err });
-});
-
-// Start the server
-const port = process.env.PORT || 3000;
-const server = app.listen(port, () => {
-  console.log(`Listening on port ${port}`);
-});
-
-// Set up socket.io
-const io = socket(server, {
-  cors: {
-    origin: config.react_app_url,
-  },
-});
-let online = 0;
-
-io.on('connection', (socket) => {
-  online++;
-  console.log(`Socket ${socket.id} connected.`);
-  console.log(`Online: ${online}`);
-  io.emit('visitor enters', online);
-
-  socket.on('add', (data) => socket.broadcast.emit('add', data));
-  socket.on('update', (data) => socket.broadcast.emit('update', data));
-  socket.on('delete', (data) => socket.broadcast.emit('delete', data));
-
-  socket.on('disconnect', () => {
-    online--;
-    console.log(`Socket ${socket.id} disconnected.`);
-    console.log(`Online: ${online}`);
-    io.emit('visitor exits', online);
+  // Use express's default error handling middleware
+  app.use((err, req, res, next) => {
+    if (res.headersSent) return next(err);
+    res.status(400).json({ err: err });
   });
-});
+
+  // Start the server
+  const port = env.PORT;
+  const server = app.listen(port, () => {
+    console.log(`Listening on port ${port}`);
+  });
+
+  // Set up socket.io
+  const io = socket(server, {
+    cors: {
+      origin: env.CLIENT_URL,
+    },
+  });
+  let online = 0;
+
+  io.on('connection', (socket) => {
+    online++;
+    console.log(`Socket ${socket.id} connected.`);
+    console.log(`Online: ${online}`);
+    io.emit('visitor enters', online);
+
+    socket.on('add', (data) => socket.broadcast.emit('add', data));
+    socket.on('update', (data) => socket.broadcast.emit('update', data));
+    socket.on('delete', (data) => socket.broadcast.emit('delete', data));
+
+    socket.on('disconnect', () => {
+      online--;
+      console.log(`Socket ${socket.id} disconnected.`);
+      console.log(`Online: ${online}`);
+      io.emit('visitor exits', online);
+    });
+  });
+};
+
+start();
