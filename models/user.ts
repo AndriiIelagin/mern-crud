@@ -40,3 +40,21 @@ export const User = mongoose.model('user', UserSchema);
 export type UserFields = InferSchemaType<typeof UserSchema>;
 
 export type UserDoc = HydratedDocument<UserFields>;
+
+export type UserResponse = {
+  _id: string;
+  name: string;
+  email: string;
+  age: number | null;
+  gender: 'm' | 'f' | null;
+};
+
+export function toUserResponse(doc: UserDoc): UserResponse {
+  return {
+    _id: doc._id.toString(),
+    name: doc.name,
+    email: doc.email,
+    age: doc.age ?? null,
+    gender: doc.gender || null,
+  };
+}

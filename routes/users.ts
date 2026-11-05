@@ -1,7 +1,8 @@
-const express = require('express');
-const rateLimit = require('express-rate-limit');
-const stringCapitalizeName = require('string-capitalize-name');
-const { User } = require('../models/user');
+import express, { Response } from 'express';
+import rateLimit from 'express-rate-limit';
+import stringCapitalizeName from 'string-capitalize-name';
+import { User, type UserDoc } from '../models/user';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -19,38 +20,47 @@ const postLimiter = rateLimit({
 
 // Sanitization functions
 const sanitizers = {
-  name: (name) => stringCapitalizeName(name),
-  email: (email) => email.toLowerCase(),
-  age: (age) => {
+  name: (name: string) => stringCapitalizeName(name),
+  email: (email: string) => email.toLowerCase(),
+  age: (age: string) => {
     if (age === '') return '';
-    if (isNaN(age)) return '';
+    if (Number.isNaN(Number(age))) return '';
     return parseInt(age);
   },
-  gender: (gender) => (gender === 'm' || gender === 'f' ? gender : ''),
+  gender: (gender: 'm' | 'f' | ''): string =>
+    gender === 'm' || gender === 'f' ? gender : '',
 };
 
 // Validation helper
-const validateAge = (age) => {
+const validateAge = (age: string | number) => {
   if (age === '') return null;
-  if (age < 5) return "You're too young for this.";
-  if (age > 130) return "You're too old for this.";
+  if (typeof age === 'number') {
+    if (age < 5) return "You're too young for this.";
+    if (age > 130) return "You're too old for this.";
+  }
+
   return null;
 };
 
 // Error handler for validation errors
-const handleValidationError = (err, res) => {
-  if (err.errors) {
-    const field = Object.keys(err.errors)[0];
-    return res
-      .status(400)
-      .json({ success: false, msg: err.errors[field].message });
+const handleValidationError = (err: unknown, res: Response) => {
+  if (err instanceof mongoose.Error.ValidationError) {
+    if (err.errors) {
+      const field = Object.keys(err.errors)[0];
+      return res.status(400).json({
+        success: false,
+        msg: field
+          ? (err.errors[field]?.message ?? 'Invalid input.')
+          : 'Invalid input.',
+      });
+    }
   }
-  console.error('Unhandled error in users route:', err); // ← add this line
+
   res.status(500).json({ success: false, msg: 'Something went wrong.' });
 };
 
 // Format user response
-const formatUser = (user) => ({
+const formatUser = (user: UserDoc) => ({
   _id: user._id,
   name: user.name,
   email: user.email,
@@ -58,8 +68,9 @@ const formatUser = (user) => ({
   gender: user.gender,
 });
 
+// TODO(session-12): replace with a Zod schema. body is untrusted input.
 // Sanitize request body
-const sanitizeUser = (body) => ({
+const sanitizeUser = (body: any) => ({
   name: sanitizers.name(body.name || ''),
   email: sanitizers.email(body.email || ''),
   age: sanitizers.age(body.age),
@@ -163,4 +174,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+export const usersRouter = router;

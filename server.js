@@ -37,7 +37,7 @@ const start = async () => {
   }
 
   // Initialize routes middleware
-  app.use('/api/users', require('./routes/users'));
+  app.use('/api/users', require('./routes/users').usersRouter);
 
   // Use express's default error handling middleware
   app.use((err, req, res, next) => {
