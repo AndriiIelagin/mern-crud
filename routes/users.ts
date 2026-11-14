@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import stringCapitalizeName from 'string-capitalize-name';
 import { User, type UserDoc } from '../models/user';
 import mongoose from 'mongoose';
+import { UserBody } from './users.schema';
 
 const router = express.Router();
 
@@ -102,16 +103,16 @@ router.get('/', async (req, res) => {
 
 // CREATE user
 router.post('/', postLimiter, async (req, res) => {
+  const parsed = UserBody.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      msg: parsed.error.issues[0]?.message ?? 'Invalid input.',
+    });
+  }
+
   try {
-    const sanitized = sanitizeUser(req.body);
-
-    // Validate age
-    const ageError = validateAge(sanitized.age);
-    if (ageError) {
-      return res.status(403).json({ success: false, msg: ageError });
-    }
-
-    const newUser = new User(sanitized);
+    const newUser = new User(parsed.data);
     const result = await newUser.save();
 
     res.status(201).json({
@@ -127,15 +128,15 @@ router.post('/', postLimiter, async (req, res) => {
 // UPDATE user
 router.put('/:id', async (req, res) => {
   try {
-    const sanitized = sanitizeUser(req.body);
-
-    // Validate age
-    const ageError = validateAge(sanitized.age);
-    if (ageError) {
-      return res.status(403).json({ success: false, msg: ageError });
+    const parsed = UserBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        msg: parsed.error.issues[0]?.message ?? 'Invalid input.',
+      });
     }
 
-    const user = await User.findByIdAndUpdate(req.params.id, sanitized, {
+    const user = await User.findByIdAndUpdate(req.params.id, parsed.data, {
       runValidators: true,
       context: 'query',
       new: true,
