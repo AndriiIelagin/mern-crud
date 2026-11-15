@@ -1,9 +1,14 @@
 import express, { Response } from 'express';
 import rateLimit from 'express-rate-limit';
-import stringCapitalizeName from 'string-capitalize-name';
-import { User, type UserDoc } from '../models/user';
+import {
+  toUserResponse,
+  User,
+  UserResponse,
+  type UserDoc,
+} from '../models/user';
 import mongoose from 'mongoose';
 import { UserBody } from './users.schema';
+import { ApiResponse } from './api-response';
 
 const router = express.Router();
 
@@ -18,30 +23,6 @@ const postLimiter = rateLimit({
     });
   },
 });
-
-// Sanitization functions
-const sanitizers = {
-  name: (name: string) => stringCapitalizeName(name),
-  email: (email: string) => email.toLowerCase(),
-  age: (age: string) => {
-    if (age === '') return '';
-    if (Number.isNaN(Number(age))) return '';
-    return parseInt(age);
-  },
-  gender: (gender: 'm' | 'f' | ''): string =>
-    gender === 'm' || gender === 'f' ? gender : '',
-};
-
-// Validation helper
-const validateAge = (age: string | number) => {
-  if (age === '') return null;
-  if (typeof age === 'number') {
-    if (age < 5) return "You're too young for this.";
-    if (age > 130) return "You're too old for this.";
-  }
-
-  return null;
-};
 
 // Error handler for validation errors
 const handleValidationError = (err: unknown, res: Response) => {
@@ -69,33 +50,28 @@ const formatUser = (user: UserDoc) => ({
   gender: user.gender,
 });
 
-// TODO(session-12): replace with a Zod schema. body is untrusted input.
-// Sanitize request body
-const sanitizeUser = (body: any) => ({
-  name: sanitizers.name(body.name || ''),
-  email: sanitizers.email(body.email || ''),
-  age: sanitizers.age(body.age),
-  gender: sanitizers.gender(body.gender || ''),
-});
-
 // GET single user
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res: Response<ApiResponse<UserResponse>>) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ success: false, msg: 'User not found.' });
     }
-    res.json(user);
+    res.json({ success: true, result: toUserResponse(user) });
   } catch (err) {
     res.status(404).json({ success: false, msg: 'User not found.' });
   }
 });
 
 // GET all users
-router.get('/', async (req, res) => {
+router.get('/', async (req, res: Response<ApiResponse<UserResponse[]>>) => {
   try {
     const users = await User.find({});
-    res.json(users);
+    if (!users || users.length === 0) {
+      return res.status(404).json({ success: false, msg: 'No users found.' });
+    }
+
+    res.json({ success: true, result: users.map(toUserResponse) });
   } catch (err) {
     res.status(500).json({ success: false, msg: 'Something went wrong.' });
   }
