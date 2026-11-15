@@ -5,14 +5,13 @@ import axios from 'axios';
 const genderOptions = [
   { key: 'm', text: 'Male', value: 'm' },
   { key: 'f', text: 'Female', value: 'f' },
-  { key: 'o', text: 'Do Not Disclose', value: 'o' }
-]
+  { key: 'o', text: 'Do Not Disclose', value: 'o' },
+];
 
 class FormUser extends Component {
-
   constructor(props) {
     super(props);
-    
+
     this.state = {
       name: '',
       email: '',
@@ -20,8 +19,8 @@ class FormUser extends Component {
       gender: '',
       formClassName: '',
       formSuccessMessage: '',
-      formErrorMessage: ''
-    }
+      formErrorMessage: '',
+    };
 
     this.handleInputChange = this.handleInputChange.bind(this);
     this.handleSelectChange = this.handleSelectChange.bind(this);
@@ -31,18 +30,19 @@ class FormUser extends Component {
   componentWillMount() {
     // Fill in the form with the appropriate data if user id is provided
     if (this.props.userID) {
-      axios.get(`${this.props.server}/api/users/${this.props.userID}`)
-      .then((response) => {
-        this.setState({
-          name: response.data.name,
-          email: response.data.email,
-          age: response.data.age ?? '',
-          gender: response.data.gender,
+      axios
+        .get(`${this.props.server}/api/users/${this.props.userID}`)
+        .then((response) => {
+          this.setState({
+            name: response.data.result.name,
+            email: response.data.result.email,
+            age: response.data.result.age ?? '',
+            gender: response.data.result.gender ?? '',
+          });
+        })
+        .catch((err) => {
+          console.log(err);
         });
-      })
-      .catch((err) => {
-        console.log(err);
-      });
     }
   }
 
@@ -63,10 +63,16 @@ class FormUser extends Component {
     e.preventDefault();
 
     // Client-side validation: Check if any of the fields are empty
-    if (!this.state.name || !this.state.email || !this.state.age || !this.state.gender) {
+    if (
+      !this.state.name ||
+      !this.state.email ||
+      !this.state.age ||
+      !this.state.gender
+    ) {
       this.setState({
         formClassName: 'warning',
-        formErrorMessage: 'Please fill out all fields: Name, Email, Age, and Gender.'
+        formErrorMessage:
+          'Please fill out all fields: Name, Email, Age, and Gender.',
       });
       return; // Stop further execution
     }
@@ -75,8 +81,8 @@ class FormUser extends Component {
       name: this.state.name,
       email: this.state.email,
       age: this.state.age,
-      gender: this.state.gender
-    }
+      gender: this.state.gender,
+    };
 
     // Acknowledge that if the user id is provided, we're updating via PUT
     // Otherwise, we're creating a new data via POST
@@ -87,50 +93,46 @@ class FormUser extends Component {
       method: method,
       responseType: 'json',
       url: `${this.props.server}/api/users/${params}`,
-      data: user
+      data: user,
     })
-    .then((response) => {
-      this.setState({
-        formClassName: 'success',
-        formSuccessMessage: response.data.msg
-      });
-
-      if (!this.props.userID) {
+      .then((response) => {
         this.setState({
-          name: '',
-          email: '',
-          age: '',
-          gender: ''
+          formClassName: 'success',
+          formSuccessMessage: response.data.msg,
         });
-        this.props.onUserAdded(response.data.result);
-        this.props.socket.emit('add', response.data.result);
-      }
-      else {
-        this.props.onUserUpdated(response.data.result);
-        this.props.socket.emit('update', response.data.result);
-      }
-      
-    })
-    .catch((err) => {
-      if (err.response) {
-        if (err.response.data) {
+
+        if (!this.props.userID) {
+          this.setState({
+            name: '',
+            email: '',
+            age: '',
+            gender: '',
+          });
+          this.props.onUserAdded(response.data.result);
+          this.props.socket.emit('add', response.data.result);
+        } else {
+          this.props.onUserUpdated(response.data.result);
+          this.props.socket.emit('update', response.data.result);
+        }
+      })
+      .catch((err) => {
+        if (err.response) {
+          if (err.response.data) {
+            this.setState({
+              formClassName: 'warning',
+              formErrorMessage: err.response.data.msg,
+            });
+          }
+        } else {
           this.setState({
             formClassName: 'warning',
-            formErrorMessage: err.response.data.msg
+            formErrorMessage: 'Something went wrong. ' + err,
           });
         }
-      }
-      else {
-        this.setState({
-          formClassName: 'warning',
-          formErrorMessage: 'Something went wrong. ' + err
-        });
-      }
-    });
+      });
   }
 
   render() {
-
     const formClassName = this.state.formClassName;
     const formSuccessMessage = this.state.formSuccessMessage;
     const formErrorMessage = this.state.formErrorMessage;
@@ -138,42 +140,42 @@ class FormUser extends Component {
     return (
       <Form className={formClassName} onSubmit={this.handleSubmit}>
         <Form.Input
-          label='Name'
-          type='text'
-          placeholder='Elon Musk'
-          name='name'
-          maxLength='40'
+          label="Name"
+          type="text"
+          placeholder="Elon Musk"
+          name="name"
+          maxLength="40"
           required
           value={this.state.name}
           onChange={this.handleInputChange}
         />
         <Form.Input
-          label='Email'
-          type='email'
-          placeholder='elonmusk@tesla.com'
-          name='email'
-          maxLength='40'
+          label="Email"
+          type="email"
+          placeholder="elonmusk@tesla.com"
+          name="email"
+          maxLength="40"
           required
           value={this.state.email}
           onChange={this.handleInputChange}
         />
-        <Form.Group widths='equal'>
+        <Form.Group widths="equal">
           <Form.Input
-            label='Age'
-            type='number'
-            placeholder='18'
+            label="Age"
+            type="number"
+            placeholder="18"
             min={5}
             max={130}
-            name='age'
+            name="age"
             required
             value={this.state.age}
             onChange={this.handleInputChange}
           />
           <Form.Field
             control={Select}
-            label='Gender'
+            label="Gender"
             options={genderOptions}
-            placeholder='Gender'
+            placeholder="Gender"
             required
             value={this.state.gender}
             onChange={this.handleSelectChange}
@@ -181,18 +183,21 @@ class FormUser extends Component {
         </Form.Group>
         <Message
           success
-          color='green'
-          header='Nice one!'
+          color="green"
+          header="Nice one!"
           content={formSuccessMessage}
         />
         <Message
           warning
-          color='yellow'
-          header='Woah!'
+          color="yellow"
+          header="Woah!"
           content={formErrorMessage}
         />
-        <Button color={this.props.buttonColor} floated='right'>{this.props.buttonSubmitTitle}</Button>
-        <br /><br /> {/* Yikes! Deal with Semantic UI React! */}
+        <Button color={this.props.buttonColor} floated="right">
+          {this.props.buttonSubmitTitle}
+        </Button>
+        <br />
+        <br /> {/* Yikes! Deal with Semantic UI React! */}
       </Form>
     );
   }
